@@ -47,7 +47,7 @@
         // Importa as bibliotecas do Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, collection, addDoc, doc, setDoc, getDoc, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, doc, setDoc, getDoc, query, where, getDocs, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         const firebaseConfig = {
         apiKey: "AIzaSyBKd54PxsZV-tvufRULO6hcv1_td7AMlUI",
@@ -457,7 +457,7 @@
                     celular: celular, cep: cep, endereco: `${endereco}, ${numero}, ${complemento}`, dataCadastro: new Date()
                 });
                 await sendEmailVerification(user);
-                registerMessage.textContent = 'Cadastro bem-sucedido! Um e-mail de verificação foi enviado. Por favor, verifique seu e-mail.';
+                registerMessage.textContent = 'Cadastro bem-sucedido! Um e-mail de verificação foi enviado. Por favor, verifique sua caixa de entrada, incluindo a pasta de Spam.';
                 registerMessage.classList.add('text-green-500');
                 registerMessage.classList.remove('text-red-500');
             } catch (error) {
@@ -485,6 +485,7 @@
             event.preventDefault();
             const orderMessage = document.getElementById('order-message');
             const user = auth.currentUser;
+            const nome = document.getElementById('order-nome').value;
 
             if (cart.length === 0) {
                 orderMessage.textContent = 'O carrinho está vazio. Adicione produtos para fazer um pedido.';
@@ -539,7 +540,11 @@
                 window.open(whatsappUrl, '_blank');
                 
             } catch (e) {
-                orderMessage.textContent = 'Erro ao enviar o pedido: ' + e.message;
+                 if (e.message.includes('offline')) {
+                    orderMessage.textContent = 'Erro de conexão: Não foi possível enviar o pedido. Verifique sua internet e tente novamente.';
+                } else {
+                    orderMessage.textContent = 'Erro ao enviar o pedido: ' + e.message;
+                }
                 orderMessage.classList.add('text-red-500');
                 orderMessage.classList.remove('text-green-500');
                 console.error("Erro ao adicionar documento: ", e);
@@ -550,15 +555,17 @@
             const authSection = document.getElementById('auth-section');
             const orderSection = document.getElementById('order-section');
             const verificationSection = document.getElementById('email-verification-section');
-            const usernameDisplay = document.getElementById('username-display');
+            const welcomeMessageDisplay = document.getElementById('welcome-message-display');
             const companyNameDisplay = document.getElementById('company-name-display');
             const adminTab = document.getElementById('admin-tab');
+            const errorBanner = document.getElementById('error-banner');
 
             if (user) {
                 if (user.emailVerified) {
                     authSection.classList.add('hidden');
                     orderSection.classList.remove('hidden');
                     verificationSection.classList.add('hidden');
+                    errorBanner.classList.add('hidden');
                     
                     isUserAdmin = ADMIN_EMAILS.includes(user.email);
                     if (isUserAdmin) {
@@ -567,15 +574,25 @@
                         adminTab.classList.add('hidden');
                     }
 
-                    const userDoc = await getDoc(doc(db, "clientes", user.uid));
-                    if (userDoc.exists()) {
-                        const userData = userDoc.data();
-                        usernameDisplay.textContent = userData.contato;
-                        companyNameDisplay.textContent = userData.empresa;
-                    } else {
-                        usernameDisplay.textContent = user.email;
-                        companyNameDisplay.textContent = '';
+                    try {
+                        const userDoc = await getDoc(doc(db, "clientes", user.uid));
+                        if (userDoc.exists()) {
+                            const userData = userDoc.data();
+                            welcomeMessageDisplay.textContent = `Olá ${userData.contato}, Bem Vindo a Rod Frios. Posso anotar o seu pedido?`;
+                            companyNameDisplay.textContent = userData.empresa;
+                        } else {
+                            welcomeMessageDisplay.textContent = `Olá, Bem Vindo a Rod Frios. Posso anotar o seu pedido?`;
+                            companyNameDisplay.textContent = '';
+                        }
+                    } catch (e) {
+                         if (e.message.includes('offline')) {
+                            errorBanner.textContent = 'Erro de conexão: Não foi possível carregar os dados do usuário. Verifique sua internet.';
+                            errorBanner.classList.remove('hidden');
+                         } else {
+                            console.error("Erro ao buscar dados do usuário: ", e);
+                         }
                     }
+
                 } else {
                     authSection.classList.add('hidden');
                     orderSection.classList.add('hidden');
@@ -586,8 +603,9 @@
                 orderSection.classList.add('hidden');
                 verificationSection.classList.add('hidden');
                 adminTab.classList.add('hidden');
-                usernameDisplay.textContent = '';
+                welcomeMessageDisplay.textContent = '';
                 companyNameDisplay.textContent = '';
+                errorBanner.classList.add('hidden');
                 toggleForm('login');
             }
         });
@@ -646,7 +664,7 @@
 
     </script>
 </head>
-<body class="bg-red-800 flex flex-col items-center justify-center min-h-screen p-4 font-sans">
+<body class="bg-yellow-400 flex flex-col items-center justify-center min-h-screen p-4 font-sans">
 
     <div class="bg-white p-10 rounded-xl shadow-2xl max-w-lg w-full">
         <div class="flex justify-center mb-6">
@@ -695,12 +713,15 @@
         <div id="email-verification-section" class="hidden">
             <h2 class="text-2xl font-bold text-center text-gray-800 mb-4">Verifique seu E-mail</h2>
             <p class="text-gray-600 text-center mb-4">Um e-mail de verificação foi enviado para o seu endereço de e-mail. Por favor, clique no link dentro do e-mail para validar sua conta.</p>
+            <p class="text-gray-600 text-center text-red-500 text-sm mb-4">Se não encontrar o e-mail, verifique a pasta de Spam.</p>
             <p class="text-gray-600 text-center mb-6">Após a verificação, você poderá voltar e fazer o login para enviar pedidos.</p>
             <button id="resend-email-button" class="w-full mt-4 bg-gray-400 text-white p-3 rounded-md font-semibold hover:bg-gray-500 transition duration-200">Reenviar e-mail de verificação</button>
         </div>
         <div id="order-section" class="hidden">
             <div class="text-center mb-4">
-                <p class="text-gray-700">Bem-vindo(a), <span class="font-bold text-blue-600" id="username-display"></span>!</p>
+                <p class="text-gray-700 font-bold text-lg" id="welcome-message-display">
+                    <!-- Mensagem de boas-vindas será inserida aqui -->
+                </p>
                 <p class="text-sm text-gray-500 mb-2">Empresa: <span class="font-semibold" id="company-name-display"></span></p>
                 <button id="logout-button" class="text-sm text-red-500 hover:underline">Sair</button>
             </div>
