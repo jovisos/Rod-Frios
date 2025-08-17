@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Adicionando estilos personalizados para os botões */
+        /* Estilos personalizados para os botões */
         .btn-magalu-primary {
             background-color: #FFD700;
             color: #333;
@@ -54,25 +54,45 @@
             position: sticky;
             top: 0;
             z-index: 50;
-            background-color: white;
+            background-color: #9B2D30;
             border-bottom: 1px solid #e5e7eb;
         }
-        .product-card-container {
+        .container-card-produto {
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             height: 100%;
         }
-        .product-card-container img {
+        .container-card-produto img {
             height: auto;
             max-height: 160px; /* Altura máxima para a imagem */
             object-fit: cover;
         }
-        .product-details {
+        .detalhes-produto {
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
             flex-grow: 1;
+        }
+        #cookie-consent-banner {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            z-index: 1000;
+            display: none; /* Inicia oculto */
+        }
+        /* Estilo da vaquinha Rod */
+        .vaquinha-rod-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
         }
     </style>
     <script type="module">
@@ -101,15 +121,15 @@
         let isUserAdmin = false;
 
         // URL da sua planilha do Google Sheets (precisa ser publicada como CSV)
-        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTpI_xJINDz95eoA0yhTlFyouRSKbk6mU-Q3_e3jheedexMI5etMqd1MhVVKopsEUNmN8-J-hhpu0lX/pub?output=csv';
+        const URL_PLANILHA = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTpI_xJINDz95eoA0yhTlFyouRSKbk6mU-Q3_e3jheedexMI5etMqd1MhVVKopsEUNmN8-J-hhpu0lX/pub?output=csv';
 
-        let products = [];
-        let cart = [];
+        let produtos = [];
+        let carrinho = [];
 
         // Função para buscar os produtos da planilha
-        async function fetchProductsFromSheet() {
+        async function buscarProdutosDaPlanilha() {
             try {
-                const response = await fetch(SHEET_URL);
+                const response = await fetch(URL_PLANILHA);
                 if (!response.ok) {
                     throw new Error('Erro ao buscar a planilha. Verifique se a URL está correta e a planilha está publicada.');
                 }
@@ -120,10 +140,10 @@
                     return match ? match.map(cell => cell.replace(/"/g, '').trim()) : null;
                 }).filter(Boolean);
                 
-                // Pular o cabeçalho
+                // Pula o cabeçalho
                 rows.shift();
 
-                products = rows.map(row => {
+                produtos = rows.map(row => {
                     const [id, name, price, imageUrl, description] = row;
                     
                     if (id && name && price) {
@@ -138,175 +158,175 @@
                     return null;
                 }).filter(Boolean); // Filtra linhas inválidas
 
-                renderProducts(products);
-                console.log("Produtos carregados da planilha:", products);
+                renderizarProdutos(produtos);
+                console.log("Produtos carregados da planilha:", produtos);
             } catch (error) {
                 console.error("Erro ao carregar produtos:", error);
-                document.getElementById('product-list').innerHTML = '<p class="text-center text-red-500">Erro ao carregar produtos. Tente novamente mais tarde.</p>';
+                document.getElementById('lista-produtos').innerHTML = '<p class="text-center text-red-500">Erro ao carregar produtos. Tente novamente mais tarde.</p>';
             }
         }
 
 
         // Funções da UI
-        function toggleForm(formType) {
-            const loginSection = document.getElementById('login-section');
-            const registerSection = document.getElementById('register-section');
-            const loginMessage = document.getElementById('login-message');
-            const registerMessage = document.getElementById('register-message');
+        function alternarFormulario(tipo) {
+            const secaoLogin = document.getElementById('secao-login');
+            const secaoRegistro = document.getElementById('secao-cadastro');
+            const mensagemLogin = document.getElementById('mensagem-login');
+            const mensagemRegistro = document.getElementById('mensagem-cadastro');
             
-            if (formType === 'login') {
-                loginSection.classList.remove('hidden');
-                registerSection.classList.add('hidden');
+            if (tipo === 'login') {
+                secaoLogin.classList.remove('hidden');
+                secaoRegistro.classList.add('hidden');
             } else {
-                loginSection.classList.add('hidden');
-                registerSection.classList.remove('hidden');
+                secaoLogin.classList.add('hidden');
+                secaoRegistro.classList.remove('hidden');
             }
-            loginMessage.textContent = '';
-            registerMessage.textContent = '';
+            mensagemLogin.textContent = '';
+            mensagemRegistro.textContent = '';
         }
 
-        function renderProducts(productsToRender) {
-            const productList = document.getElementById('product-list');
-            productList.innerHTML = '';
-            productsToRender.forEach(product => {
-                const productCard = document.createElement('div');
-                productCard.className = 'bg-white rounded-lg shadow-md p-4 flex flex-col items-center space-y-3 hover:shadow-xl transition-shadow duration-300';
-                productCard.innerHTML = `
-                    <div class="product-card-container">
-                        <img src="${product.imageUrl}" onerror="this.src='https://placehold.co/400x300/CCCCCC/000000?text=Sem+Imagem';" alt="${product.name}" class="w-full object-cover rounded-md mb-2">
-                        <div class="product-details">
-                            <h3 class="font-bold text-lg text-gray-800 text-center">${product.name}</h3>
-                            <p class="text-sm text-gray-600 text-center">${product.description}</p>
-                            <span class="text-xl font-bold text-red-600 mt-2">R$ ${product.price.toFixed(2)}</span>
+        function renderizarProdutos(produtosParaRenderizar) {
+            const listaProdutos = document.getElementById('lista-produtos');
+            listaProdutos.innerHTML = '';
+            produtosParaRenderizar.forEach(produto => {
+                const cardProduto = document.createElement('div');
+                cardProduto.className = 'bg-white rounded-lg shadow-md p-4 flex flex-col items-center space-y-3 hover:shadow-xl transition-shadow duration-300';
+                cardProduto.innerHTML = `
+                    <div class="container-card-produto">
+                        <img src="${produto.imageUrl}" onerror="this.src='https://placehold.co/400x300/CCCCCC/000000?text=Sem+Imagem';" alt="${produto.name}" class="w-full object-cover rounded-md mb-2">
+                        <div class="detalhes-produto">
+                            <h3 class="font-bold text-lg text-gray-800 text-center">${produto.name}</h3>
+                            <p class="text-sm text-gray-600 text-center">${produto.description}</p>
+                            <span class="text-xl font-bold text-red-600 mt-2">R$ ${produto.price.toFixed(2)}</span>
                         </div>
                     </div>
-                    <button class="add-to-cart-button w-full text-white p-2 rounded-md font-semibold hover:opacity-90 transition-opacity duration-200 bg-red-600 shadow-md" data-product-id="${product.id}">
+                    <button class="botao-adicionar-carrinho w-full text-white p-2 rounded-md font-semibold hover:opacity-90 transition-opacity duration-200 bg-red-600 shadow-md" data-product-id="${produto.id}">
                         Adicionar ao Carrinho
                     </button>
                 `;
-                productList.appendChild(productCard);
+                listaProdutos.appendChild(cardProduto);
             });
-            document.querySelectorAll('.add-to-cart-button').forEach(button => {
-                button.addEventListener('click', handleAddToCart);
+            document.querySelectorAll('.botao-adicionar-carrinho').forEach(button => {
+                button.addEventListener('click', adicionarAoCarrinho);
             });
         }
         
-        function handleAddToCart(event) {
-            const productId = parseInt(event.target.dataset.productId);
-            const product = products.find(p => p.id === productId);
-            if (product) {
-                const cartItem = cart.find(item => item.id === productId);
-                if (cartItem) {
-                    cartItem.quantity++;
+        function adicionarAoCarrinho(event) {
+            const produtoId = parseInt(event.target.dataset.productId);
+            const produto = produtos.find(p => p.id === produtoId);
+            if (produto) {
+                const itemCarrinho = carrinho.find(item => item.id === produtoId);
+                if (itemCarrinho) {
+                    itemCarrinho.quantity++;
                 } else {
-                    cart.push({ ...product, quantity: 1 });
+                    carrinho.push({ ...produto, quantity: 1 });
                 }
-                renderCart();
+                renderizarCarrinho();
             }
         }
 
-        function renderCart() {
-            const cartItemsContainer = document.getElementById('cart-items-container');
-            const cartTotalSpan = document.getElementById('cart-total');
-            cartItemsContainer.innerHTML = '';
+        function renderizarCarrinho() {
+            const containerItensCarrinho = document.getElementById('container-itens-carrinho');
+            const totalCarrinhoSpan = document.getElementById('total-carrinho');
+            containerItensCarrinho.innerHTML = '';
             let subtotal = 0;
 
-            if (cart.length === 0) {
-                cartItemsContainer.innerHTML = '<p class="text-center text-gray-500">O carrinho está vazio.</p>';
+            if (carrinho.length === 0) {
+                containerItensCarrinho.innerHTML = '<p class="text-center text-gray-500">O carrinho está vazio.</p>';
             } else {
-                cart.forEach(item => {
+                carrinho.forEach(item => {
                     subtotal += item.price * item.quantity;
-                    const cartItemDiv = document.createElement('div');
-                    cartItemDiv.className = 'flex items-center justify-between py-2 border-b';
-                    cartItemDiv.innerHTML = `
+                    const itemCarrinhoDiv = document.createElement('div');
+                    itemCarrinhoDiv.className = 'flex items-center justify-between py-2 border-b';
+                    itemCarrinhoDiv.innerHTML = `
                         <div class="flex-1">
                             <h4 class="font-semibold text-sm">${item.name}</h4>
                             <span class="text-xs text-gray-500">R$ ${item.price.toFixed(2)} x ${item.quantity}</span>
                         </div>
                         <div class="flex items-center space-x-2">
-                            <button class="remove-from-cart-button text-red-500 p-1 rounded-full bg-red-100 hover:bg-red-200 transition duration-200" data-product-id="${item.id}">-</button>
+                            <button class="botao-remover-carrinho text-red-500 p-1 rounded-full bg-red-100 hover:bg-red-200 transition duration-200" data-product-id="${item.id}">-</button>
                             <span class="px-2 text-sm">${item.quantity}</span>
-                            <button class="add-more-button text-green-500 p-1 rounded-full bg-green-100 hover:bg-green-200 transition duration-200" data-product-id="${item.id}">+</button>
+                            <button class="botao-adicionar-mais text-green-500 p-1 rounded-full bg-green-100 hover:bg-green-200 transition duration-200" data-product-id="${item.id}">+</button>
                         </div>
                     `;
-                    cartItemsContainer.appendChild(cartItemDiv);
+                    containerItensCarrinho.appendChild(itemCarrinhoDiv);
                 });
             }
 
-            cartTotalSpan.textContent = subtotal.toFixed(2);
+            totalCarrinhoSpan.textContent = subtotal.toFixed(2);
 
-            document.querySelectorAll('.remove-from-cart-button').forEach(button => {
-                button.addEventListener('click', handleRemoveFromCart);
+            document.querySelectorAll('.botao-remover-carrinho').forEach(button => {
+                button.addEventListener('click', removerDoCarrinho);
             });
-            document.querySelectorAll('.add-more-button').forEach(button => {
-                button.addEventListener('click', handleAddMore);
+            document.querySelectorAll('.botao-adicionar-mais').forEach(button => {
+                button.addEventListener('click', adicionarMais);
             });
         }
 
-        function handleRemoveFromCart(event) {
-            const productId = parseInt(event.target.dataset.productId);
-            const cartItem = cart.find(item => item.id === productId);
-            if (cartItem) {
-                if (cartItem.quantity > 1) {
-                    cartItem.quantity--;
+        function removerDoCarrinho(event) {
+            const produtoId = parseInt(event.target.dataset.productId);
+            const itemCarrinho = carrinho.find(item => item.id === produtoId);
+            if (itemCarrinho) {
+                if (itemCarrinho.quantity > 1) {
+                    itemCarrinho.quantity--;
                 } else {
-                    cart = cart.filter(item => item.id !== productId);
+                    carrinho = carrinho.filter(item => item.id !== produtoId);
                 }
-                renderCart();
+                renderizarCarrinho();
             }
         }
 
-        function handleAddMore(event) {
-            const productId = parseInt(event.target.dataset.productId);
-            const cartItem = cart.find(item => item.id === productId);
-            if (cartItem) {
-                cartItem.quantity++;
+        function adicionarMais(event) {
+            const produtoId = parseInt(event.target.dataset.productId);
+            const itemCarrinho = carrinho.find(item => item.id === produtoId);
+            if (itemCarrinho) {
+                itemCarrinho.quantity++;
             }
-            renderCart();
+            renderizarCarrinho();
         }
 
-        function handleSearch(event) {
+        function buscarProdutos(event) {
             const query = event.target.value.toLowerCase();
-            const filteredProducts = products.filter(product => 
-                product.name.toLowerCase().includes(query) ||
-                product.description.toLowerCase().includes(query)
+            const produtosFiltrados = produtos.filter(produto => 
+                produto.name.toLowerCase().includes(query) ||
+                produto.description.toLowerCase().includes(query)
             );
-            renderProducts(filteredProducts);
+            renderizarProdutos(produtosFiltrados);
         }
 
-        function showOrderView(view) {
-            const productsView = document.getElementById('products-view');
-            const historyView = document.getElementById('history-view');
-            const adminView = document.getElementById('admin-view');
-            const makeOrderButton = document.getElementById('make-order-tab');
-            const historyButton = document.getElementById('history-tab');
-            const adminButton = document.getElementById('admin-tab');
+        function mostrarVisaoPedido(visao) {
+            const visaoProdutos = document.getElementById('visao-produtos');
+            const visaoHistorico = document.getElementById('visao-historico');
+            const visaoAdmin = document.getElementById('visao-admin');
+            const botaoFazerPedido = document.getElementById('aba-fazer-pedido');
+            const botaoHistorico = document.getElementById('aba-historico');
+            const botaoAdmin = document.getElementById('aba-admin');
 
-            // Reset active classes
-            [makeOrderButton, historyButton, adminButton].forEach(btn => btn.classList.remove('active'));
-            [productsView, historyView, adminView].forEach(view => view.classList.add('hidden'));
+            // Resetar classes ativas
+            [botaoFazerPedido, botaoHistorico, botaoAdmin].forEach(btn => btn.classList.remove('active'));
+            [visaoProdutos, visaoHistorico, visaoAdmin].forEach(view => view.classList.add('hidden'));
 
-            if (view === 'products') {
-                productsView.classList.remove('hidden');
-                makeOrderButton.classList.add('active');
-            } else if (view === 'history') {
-                historyView.classList.remove('hidden');
-                historyButton.classList.add('active');
-                renderOrderHistory();
-            } else if (view === 'admin') {
-                adminView.classList.remove('hidden');
-                adminButton.classList.add('active');
-                renderAdminOrders();
+            if (visao === 'produtos') {
+                visaoProdutos.classList.remove('hidden');
+                botaoFazerPedido.classList.add('active');
+            } else if (visao === 'historico') {
+                visaoHistorico.classList.remove('hidden');
+                botaoHistorico.classList.add('active');
+                renderizarHistoricoPedidos();
+            } else if (visao === 'admin') {
+                visaoAdmin.classList.remove('hidden');
+                botaoAdmin.classList.add('active');
+                renderizarPedidosAdmin();
             }
         }
 
-        async function renderOrderHistory() {
-            const historyList = document.getElementById('history-list');
+        async function renderizarHistoricoPedidos() {
+            const listaHistorico = document.getElementById('lista-historico');
             const user = auth.currentUser;
-            historyList.innerHTML = '<p class="text-center text-gray-500">Carregando histórico...</p>';
+            listaHistorico.innerHTML = '<p class="text-center text-gray-500">Carregando histórico...</p>';
 
             if (!user) {
-                historyList.innerHTML = '<p class="text-center text-gray-500">Por favor, faça login para ver seu histórico.</p>';
+                listaHistorico.innerHTML = '<p class="text-center text-gray-500">Por favor, faça login para ver seu histórico.</p>';
                 return;
             }
 
@@ -315,20 +335,20 @@
                 const querySnapshot = await getDocs(q);
 
                 if (querySnapshot.empty) {
-                    historyList.innerHTML = '<p class="text-center text-gray-500">Nenhum pedido encontrado.</p>';
+                    listaHistorico.innerHTML = '<p class="text-center text-gray-500">Nenhum pedido encontrado.</p>';
                     return;
                 }
 
-                historyList.innerHTML = '';
+                listaHistorico.innerHTML = '';
                 querySnapshot.forEach(doc => {
                     const order = doc.data();
                     const orderDate = order.data.toDate().toLocaleDateString('pt-BR');
                     
-                    const orderItem = document.createElement('div');
-                    orderItem.className = 'bg-gray-50 p-4 rounded-lg shadow mb-4';
-                    orderItem.innerHTML = `
+                    const itemPedido = document.createElement('div');
+                    itemPedido.className = 'bg-gray-50 p-4 rounded-lg shadow mb-4';
+                    itemPedido.innerHTML = `
                         <div class="flex justify-between items-center border-b pb-2 mb-2">
-                            <span class="font-bold text-gray-800">Pedido #${order.orderId} em: ${orderDate}</span>
+                            <span class="font-bold text-gray-800">Pedido #${order.pedidoId} em: ${orderDate}</span>
                             <span class="font-bold text-green-600">Total: R$ ${order.total.toFixed(2)}</span>
                         </div>
                         <ul class="list-disc list-inside space-y-1">
@@ -339,25 +359,25 @@
                             `).join('')}
                         </ul>
                     `;
-                    historyList.appendChild(orderItem);
+                    listaHistorico.appendChild(itemPedido);
                 });
 
             } catch (e) {
-                historyList.innerHTML = '<p class="text-center text-red-500">Erro ao carregar o histórico de pedidos.</p>';
+                listaHistorico.innerHTML = '<p class="text-center text-red-500">Erro ao carregar o histórico de pedidos.</p>';
                 console.error("Erro ao buscar histórico: ", e);
             }
         }
 
-        async function renderAdminOrders() {
-            const adminOrderList = document.getElementById('admin-order-list');
-            adminOrderList.innerHTML = '<p class="text-center text-gray-500">Carregando todos os pedidos...</p>';
+        async function renderizarPedidosAdmin() {
+            const listaPedidosAdmin = document.getElementById('lista-pedidos-admin');
+            listaPedidosAdmin.innerHTML = '<p class="text-center text-gray-500">Carregando todos os pedidos...</p>';
 
             try {
                 const q = query(collection(db, "pedidos"));
                 const querySnapshot = await getDocs(q);
-                adminOrderList.innerHTML = '';
+                listaPedidosAdmin.innerHTML = '';
                 if (querySnapshot.empty) {
-                    adminOrderList.innerHTML = '<p class="text-center text-gray-500">Nenhum pedido encontrado.</p>';
+                    listaPedidosAdmin.innerHTML = '<p class="text-center text-gray-500">Nenhum pedido encontrado.</p>';
                     return;
                 }
 
@@ -366,43 +386,43 @@
                     const orderId = doc.id;
                     const orderDate = order.data.toDate().toLocaleString('pt-BR');
                     
-                    const orderItem = document.createElement('div');
-                    orderItem.className = 'bg-gray-50 p-4 rounded-lg shadow mb-4';
-                    orderItem.innerHTML = `
+                    const itemPedido = document.createElement('div');
+                    itemPedido.className = 'bg-gray-50 p-4 rounded-lg shadow mb-4';
+                    itemPedido.innerHTML = `
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-2 mb-2">
                             <div class="flex-1">
-                                <span class="font-bold text-gray-800">Pedido #${order.orderId}</span>
+                                <span class="font-bold text-gray-800">Pedido #${order.pedidoId}</span>
                                 <p class="text-xs text-gray-500">Cliente: ${order.cliente} (${order.empresa})</p>
                                 <p class="text-xs text-gray-500">Data: ${orderDate}</p>
                             </div>
                             <div class="flex space-x-2 mt-2 md:mt-0">
                                 <span class="font-bold text-green-600">Total: R$ ${order.total.toFixed(2)}</span>
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full ${getOrderStatusClass(order.status)}">${order.status || 'Não Pago'}</span>
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full ${obterClasseStatusPedido(order.status)}">${order.status || 'Não Pago'}</span>
                             </div>
                         </div>
                         <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
                             ${order.produtos.map(p => `<li>${p.nome} (x${p.quantidade}) - R$ ${(p.quantidade * p.preco).toFixed(2)}</li>`).join('')}
                         </ul>
                         <div class="mt-4 flex space-x-2">
-                            <button class="edit-order-button bg-blue-500 text-white text-sm px-3 py-1 rounded-md" data-order-id="${orderId}">Editar</button>
+                            <button class="botao-editar-pedido bg-blue-500 text-white text-sm px-3 py-1 rounded-md" data-order-id="${orderId}">Editar</button>
                         </div>
                     `;
-                    adminOrderList.appendChild(orderItem);
+                    listaPedidosAdmin.appendChild(itemPedido);
                 });
                 
-                 document.querySelectorAll('.edit-order-button').forEach(button => {
+                 document.querySelectorAll('.botao-editar-pedido').forEach(button => {
                     button.addEventListener('click', (e) => {
                         const orderId = e.target.dataset.orderId;
-                        showEditModal(orderId);
+                        mostrarModalEdicao(orderId);
                     });
                 });
             } catch (e) {
-                adminOrderList.innerHTML = '<p class="text-center text-red-500">Erro ao carregar os pedidos de administrador.</p>';
+                listaPedidosAdmin.innerHTML = '<p class="text-center text-red-500">Erro ao carregar os pedidos de administrador.</p>';
                 console.error("Erro ao buscar pedidos de admin: ", e);
             }
         }
         
-        function getOrderStatusClass(status) {
+        function obterClasseStatusPedido(status) {
             switch(status) {
                 case 'Totalmente Pago': return 'bg-green-100 text-green-800';
                 case 'Parcialmente Pago': return 'bg-yellow-100 text-yellow-800';
@@ -410,23 +430,23 @@
             }
         }
         
-        async function showEditModal(orderId) {
-            const modal = document.getElementById('edit-modal');
-            const statusSelect = document.getElementById('edit-payment-status');
-            const saveButton = document.getElementById('save-payment-status');
+        async function mostrarModalEdicao(orderId) {
+            const modal = document.getElementById('modal-edicao');
+            const seletorStatus = document.getElementById('status-pagamento-edicao');
+            const botaoSalvar = document.getElementById('botao-salvar-status');
             
             modal.style.display = 'flex';
 
             const docRef = doc(db, "pedidos", orderId);
             const orderDoc = await getDoc(docRef);
             const order = orderDoc.data();
-            statusSelect.value = order.status || 'Não Pago';
+            seletorStatus.value = order.status || 'Não Pago';
             
-            saveButton.onclick = async () => {
-                const newStatus = statusSelect.value;
-                await updateDoc(docRef, { status: newStatus });
+            botaoSalvar.onclick = async () => {
+                const novoStatus = seletorStatus.value;
+                await updateDoc(docRef, { status: novoStatus });
                 modal.style.display = 'none';
-                renderAdminOrders();
+                renderizarPedidosAdmin();
             };
         }
 
@@ -434,48 +454,48 @@
         // Ações de Autenticação e Pedido
         async function login(event) {
             event.preventDefault();
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            const loginMessage = document.getElementById('login-message');
+            const email = document.getElementById('email-login').value;
+            const password = document.getElementById('senha-login').value;
+            const mensagemLogin = document.getElementById('mensagem-login');
             try {
                 await signInWithEmailAndPassword(auth, email, password);
-                loginMessage.textContent = 'Login bem-sucedido!';
-                loginMessage.classList.add('text-green-500');
-                loginMessage.classList.remove('text-red-500');
+                mensagemLogin.textContent = 'Login bem-sucedido!';
+                mensagemLogin.classList.add('text-green-500');
+                mensagemLogin.classList.remove('text-red-500');
             } catch (error) {
-                loginMessage.textContent = 'Erro no login: ' + error.message;
-                loginMessage.classList.add('text-red-500');
-                loginMessage.classList.remove('text-green-500');
+                mensagemLogin.textContent = 'Erro no login: ' + error.message;
+                mensagemLogin.classList.add('text-red-500');
+                mensagemLogin.classList.remove('text-green-500');
             }
         }
 
-        function formatCNPJ(value) {
+        function formatarCNPJ(value) {
             return value.replace(/\D/g, '').replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2').replace(/(-\d{2})\d+?$/, '$1');
         }
         
-        function formatCelular(value) {
+        function formatarCelular(value) {
             value = value.replace(/\D/g, '');
             value = value.replace(/^(\d{2})(\d)/g, "($1) $2");
             value = value.replace(/(\d)(\d{4})$/, "$1-$2");
             return value;
         }
         
-        function formatCEP(value) {
+        function formatarCEP(value) {
             return value.replace(/\D/g, '').replace(/^(\d{5})(\d)/, '$1-$2').replace(/(-\d{3})\d+?$/, '$1');
         }
 
-        async function searchCEP() {
-            const cepInput = document.getElementById('register-cep');
-            const enderecoInput = document.getElementById('register-endereco');
-            const cep = cepInput.value.replace(/\D/g, '');
+        async function buscarCEP() {
+            const inputCep = document.getElementById('cep-cadastro');
+            const inputEndereco = document.getElementById('endereco-cadastro');
+            const cep = inputCep.value.replace(/\D/g, '');
             if (cep.length === 8) {
                 try {
                     const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
                     const data = await response.json();
                     if (!data.erro) {
-                        enderecoInput.value = `${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}`;
+                        inputEndereco.value = `${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}`;
                     } else {
-                        enderecoInput.value = '';
+                        inputEndereco.value = '';
                         alert('CEP não encontrado.');
                     }
                 } catch (error) {
@@ -484,39 +504,39 @@
             }
         }
 
-        async function register(event) {
+        async function cadastrar(event) {
             event.preventDefault();
-            const email = document.getElementById('register-email').value;
-            const password = document.getElementById('register-password').value;
-            const confirmPassword = document.getElementById('register-confirm-password').value;
-            const nomeEmpresa = document.getElementById('register-empresa').value;
-            const cnpj = document.getElementById('register-cnpj').value.replace(/\D/g, '');
-            const nomeContato = document.getElementById('register-contato').value;
-            const celular = document.getElementById('register-celular').value;
-            const cep = document.getElementById('register-cep').value;
-            const endereco = document.getElementById('register-endereco').value;
-            const numero = document.getElementById('register-numero').value;
-            const complemento = document.getElementById('register-complemento').value;
-            const registerMessage = document.getElementById('register-message');
+            const email = document.getElementById('email-cadastro').value;
+            const password = document.getElementById('senha-cadastro').value;
+            const confirmPassword = document.getElementById('confirmar-senha-cadastro').value;
+            const nomeEmpresa = document.getElementById('empresa-cadastro').value;
+            const cnpj = document.getElementById('cnpj-cadastro').value.replace(/\D/g, '');
+            const nomeContato = document.getElementById('contato-cadastro').value;
+            const celular = document.getElementById('celular-cadastro').value;
+            const cep = document.getElementById('cep-cadastro').value;
+            const endereco = document.getElementById('endereco-cadastro').value;
+            const numero = document.getElementById('numero-cadastro').value;
+            const complemento = document.getElementById('complemento-cadastro').value;
+            const mensagemRegistro = document.getElementById('mensagem-cadastro');
 
             if (password.length < 6) {
-                registerMessage.textContent = 'A senha deve ter no mínimo 6 caracteres.';
-                registerMessage.classList.add('text-red-500');
-                registerMessage.classList.remove('text-green-500');
+                mensagemRegistro.textContent = 'A senha deve ter no mínimo 6 caracteres.';
+                mensagemRegistro.classList.add('text-red-500');
+                mensagemRegistro.classList.remove('text-green-500');
                 return;
             }
 
             if (password !== confirmPassword) {
-                registerMessage.textContent = 'As senhas não coincidem. Por favor, tente novamente.';
-                registerMessage.classList.add('text-red-500');
-                registerMessage.classList.remove('text-green-500');
+                mensagemRegistro.textContent = 'As senhas não coincidem. Por favor, tente novamente.';
+                mensagemRegistro.classList.add('text-red-500');
+                mensagemRegistro.classList.remove('text-green-500');
                 return;
             }
 
             if (cnpj.length !== 14) {
-                registerMessage.textContent = 'CNPJ inválido. Por favor, digite 14 números.';
-                registerMessage.classList.add('text-red-500');
-                registerMessage.classList.remove('text-green-500');
+                mensagemRegistro.textContent = 'CNPJ inválido. Por favor, digite 14 números.';
+                mensagemRegistro.classList.add('text-red-500');
+                mensagemRegistro.classList.remove('text-green-500');
                 return;
             }
 
@@ -528,19 +548,19 @@
                     celular: celular, cep: cep, endereco: `${endereco}, ${numero}, ${complemento}`, dataCadastro: new Date()
                 });
                 await sendEmailVerification(user);
-                registerMessage.textContent = 'Cadastro bem-sucedido! Um e-mail de verificação foi enviado. Por favor, verifique sua caixa de entrada, incluindo a pasta de Spam.';
-                registerMessage.classList.add('text-green-500');
-                registerMessage.classList.remove('text-red-500');
+                mensagemRegistro.textContent = 'Cadastro bem-sucedido! Um e-mail de verificação foi enviado. Por favor, verifique sua caixa de entrada, incluindo a pasta de Spam.';
+                mensagemRegistro.classList.add('text-green-500');
+                mensagemRegistro.classList.remove('text-red-500');
             } catch (error) {
                 if (error.code === 'auth/email-already-in-use') {
-                    registerMessage.textContent = 'Este e-mail já está em uso. Tente fazer login ou use outro e-mail.';
+                    mensagemRegistro.textContent = 'Este e-mail já está em uso. Tente fazer login ou use outro e-mail.';
                 } else if (error.code === 'auth/invalid-email') {
-                    registerMessage.textContent = 'O e-mail fornecido é inválido.';
+                    mensagemRegistro.textContent = 'O e-mail fornecido é inválido.';
                 } else {
-                    registerMessage.textContent = 'Erro no cadastro: ' + error.message;
+                    mensagemRegistro.textContent = 'Erro no cadastro: ' + error.message;
                 }
-                registerMessage.classList.add('text-red-500');
-                registerMessage.classList.remove('text-green-500');
+                mensagemRegistro.classList.add('text-red-500');
+                mensagemRegistro.classList.remove('text-green-500');
             }
         }
 
@@ -552,53 +572,53 @@
             }
         }
 
-        async function submitOrder(event) {
+        async function enviarPedido(event) {
             event.preventDefault();
-            const orderMessage = document.getElementById('order-message');
+            const mensagemPedido = document.getElementById('mensagem-pedido');
             const user = auth.currentUser;
             
-            if (cart.length === 0) {
-                orderMessage.textContent = 'O carrinho está vazio. Adicione produtos para fazer um pedido.';
-                orderMessage.classList.add('text-red-500');
-                orderMessage.classList.remove('text-green-500');
+            if (carrinho.length === 0) {
+                mensagemPedido.textContent = 'O carrinho está vazio. Adicione produtos para fazer um pedido.';
+                mensagemPedido.classList.add('text-red-500');
+                mensagemPedido.classList.remove('text-green-500');
                 return;
             }
 
             try {
                 const userDoc = await getDoc(doc(db, "clientes", user.uid));
                 const userData = userDoc.data();
-                const orderId = `ROD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                const pedidoId = `ROD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
                 
-                const orderData = {
-                    orderId: orderId,
+                const dadosPedido = {
+                    pedidoId: pedidoId,
                     userId: user.uid,
                     cliente: userData.contato,
                     empresa: userData.empresa,
-                    produtos: cart.map(item => ({
+                    produtos: carrinho.map(item => ({
                         id: item.id,
                         nome: item.name,
                         quantidade: item.quantity,
                         preco: item.price
                     })),
-                    total: cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+                    total: carrinho.reduce((sum, item) => sum + item.price * item.quantity, 0),
                     data: new Date(),
                     status: 'Não Pago' // Status inicial
                 };
 
-                const docRef = await addDoc(collection(db, "pedidos"), orderData);
+                await addDoc(collection(db, "pedidos"), dadosPedido);
 
-                orderMessage.textContent = `Pedido #${orderId} enviado com sucesso!`;
-                orderMessage.classList.add('text-green-500');
-                orderMessage.classList.remove('text-red-500');
-                cart = [];
-                renderCart();
+                mensagemPedido.textContent = `Pedido #${pedidoId} enviado com sucesso!`;
+                mensagemPedido.classList.add('text-green-500');
+                mensagemPedido.classList.remove('text-red-500');
+                carrinho = [];
+                renderizarCarrinho();
                 
                 const whatsappPhoneNumber = '5519981619159';
-                let whatsappMessage = `Novo pedido *#${orderId}* de *${userData.contato}* da empresa *${userData.empresa}*:\n\n`;
-                orderData.produtos.forEach(item => {
+                let whatsappMessage = `Novo pedido *#${pedidoId}* de *${userData.contato}* da empresa *${userData.empresa}*:\n\n`;
+                dadosPedido.produtos.forEach(item => {
                     whatsappMessage += ` - ${item.nome} (x${item.quantidade}) - R$ ${(item.preco * item.quantidade).toFixed(2)}\n`;
                 });
-                whatsappMessage += `\n*Total:* R$ ${orderData.total.toFixed(2)}\n\n`;
+                whatsappMessage += `\n*Total:* R$ ${dadosPedido.total.toFixed(2)}\n\n`;
                 whatsappMessage += `*Dados do Cliente:*\n`;
                 whatsappMessage += `Email: ${userData.email}\n`;
                 whatsappMessage += `Celular: ${userData.celular}\n`;
@@ -611,76 +631,76 @@
                 
             } catch (e) {
                  if (e.message.includes('offline')) {
-                    orderMessage.textContent = 'Erro de conexão: Não foi possível enviar o pedido. Verifique sua internet e tente novamente.';
+                    mensagemPedido.textContent = 'Erro de conexão: Não foi possível enviar o pedido. Verifique sua internet e tente novamente.';
                 } else {
-                    orderMessage.textContent = 'Erro ao enviar o pedido: ' + e.message;
+                    mensagemPedido.textContent = 'Erro ao enviar o pedido: ' + e.message;
                 }
-                orderMessage.classList.add('text-red-500');
-                orderMessage.classList.remove('text-green-500');
+                mensagemPedido.classList.add('text-red-500');
+                mensagemPedido.classList.remove('text-green-500');
                 console.error("Erro ao adicionar documento: ", e);
             }
         }
 
         onAuthStateChanged(auth, async (user) => {
-            const authSection = document.getElementById('auth-section');
-            const orderSection = document.getElementById('order-section');
-            const verificationSection = document.getElementById('email-verification-section');
-            const welcomeMessageDisplay = document.getElementById('welcome-message-display');
-            const companyNameDisplay = document.getElementById('company-name-display');
-            const adminTab = document.getElementById('admin-tab');
-            const errorBanner = document.getElementById('error-banner');
+            const secaoAuth = document.getElementById('secao-auth');
+            const secaoPedido = document.getElementById('secao-pedido');
+            const secaoVerificacaoEmail = document.getElementById('secao-verificacao-email');
+            const mensagemBoasVindas = document.getElementById('mensagem-boas-vindas');
+            const nomeEmpresaDisplay = document.getElementById('nome-empresa-display');
+            const abaAdmin = document.getElementById('aba-admin');
+            const bannerErro = document.getElementById('banner-erro');
 
             if (user) {
                 if (user.emailVerified) {
-                    authSection.classList.add('hidden');
-                    orderSection.classList.remove('hidden');
-                    verificationSection.classList.add('hidden');
-                    errorBanner.classList.add('hidden');
+                    secaoAuth.classList.add('hidden');
+                    secaoPedido.classList.remove('hidden');
+                    secaoVerificacaoEmail.classList.add('hidden');
+                    bannerErro.classList.add('hidden');
                     
                     isUserAdmin = ADMIN_EMAILS.includes(user.email);
                     if (isUserAdmin) {
-                        adminTab.classList.remove('hidden');
+                        abaAdmin.classList.remove('hidden');
                     } else {
-                        adminTab.classList.add('hidden');
+                        abaAdmin.classList.add('hidden');
                     }
 
                     try {
                         const userDoc = await getDoc(doc(db, "clientes", user.uid));
                         if (userDoc.exists()) {
                             const userData = userDoc.data();
-                            welcomeMessageDisplay.textContent = `Olá ${userData.contato}, Bem Vindo a Rod Frios. Posso anotar o seu pedido?`;
-                            companyNameDisplay.textContent = userData.empresa;
+                            mensagemBoasVindas.textContent = `Olá ${userData.contato}, Bem Vindo a Rod Frios. Posso anotar o seu pedido?`;
+                            nomeEmpresaDisplay.textContent = userData.empresa;
                         } else {
-                            welcomeMessageDisplay.textContent = `Olá, Bem Vindo a Rod Frios. Posso anotar o seu pedido?`;
-                            companyNameDisplay.textContent = '';
+                            mensagemBoasVindas.textContent = `Olá, Bem Vindo a Rod Frios. Posso anotar o seu pedido?`;
+                            nomeEmpresaDisplay.textContent = '';
                         }
                     } catch (e) {
                          if (e.message.includes('offline')) {
-                            errorBanner.textContent = 'Erro de conexão: Não foi possível carregar os dados do usuário. Verifique sua internet.';
-                            errorBanner.classList.remove('hidden');
+                            bannerErro.textContent = 'Erro de conexão: Não foi possível carregar os dados do usuário. Verifique sua internet.';
+                            bannerErro.classList.remove('hidden');
                          } else {
                             console.error("Erro ao buscar dados do usuário: ", e);
                          }
                     }
 
                 } else {
-                    authSection.classList.add('hidden');
-                    orderSection.classList.add('hidden');
-                    verificationSection.classList.remove('hidden');
+                    secaoAuth.classList.add('hidden');
+                    secaoPedido.classList.add('hidden');
+                    secaoVerificacaoEmail.classList.remove('hidden');
                 }
             } else {
-                authSection.classList.remove('hidden');
-                orderSection.classList.add('hidden');
-                verificationSection.classList.add('hidden');
-                adminTab.classList.add('hidden');
-                welcomeMessageDisplay.textContent = '';
-                companyNameDisplay.textContent = '';
-                errorBanner.classList.add('hidden');
-                toggleForm('login');
+                secaoAuth.classList.remove('hidden');
+                secaoPedido.classList.add('hidden');
+                secaoVerificacaoEmail.classList.add('hidden');
+                abaAdmin.classList.add('hidden');
+                mensagemBoasVindas.textContent = '';
+                nomeEmpresaDisplay.textContent = '';
+                bannerErro.classList.add('hidden');
+                alternarFormulario('login');
             }
         });
         
-        async function resendVerificationEmail() {
+        async function reenviarEmailVerificacao() {
             const user = auth.currentUser;
             if (user) {
                 try {
@@ -697,39 +717,38 @@
             }
         }
         
-        document.getElementById('edit-modal-close').onclick = function() {
-            document.getElementById('edit-modal').style.display = 'none';
+        document.getElementById('fechar-modal-edicao').onclick = function() {
+            document.getElementById('modal-edicao').style.display = 'none';
         }
         window.onclick = function(event) {
-            const modal = document.getElementById('edit-modal');
+            const modal = document.getElementById('modal-edicao');
             if (event.target == modal) {
                 modal.style.display = "none";
             }
         }
-
-
+        
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('login-form').addEventListener('submit', login);
-            document.getElementById('register-form').addEventListener('submit', register);
-            document.getElementById('logout-button').addEventListener('click', logout);
-            document.getElementById('order-form').addEventListener('submit', submitOrder);
-            document.getElementById('show-register-form').addEventListener('click', () => toggleForm('register'));
-            document.getElementById('show-login-form').addEventListener('click', () => toggleForm('login'));
-            document.getElementById('resend-email-button').addEventListener('click', resendVerificationEmail);
-            document.getElementById('search-products').addEventListener('input', handleSearch);
+            document.getElementById('form-login').addEventListener('submit', login);
+            document.getElementById('form-cadastro').addEventListener('submit', cadastrar);
+            document.getElementById('botao-logout').addEventListener('click', logout);
+            document.getElementById('form-pedido').addEventListener('submit', enviarPedido);
+            document.getElementById('mostrar-formulario-cadastro').addEventListener('click', () => alternarFormulario('cadastro'));
+            document.getElementById('mostrar-formulario-login').addEventListener('click', () => alternarFormulario('login'));
+            document.getElementById('botao-reenviar-email').addEventListener('click', reenviarEmailVerificacao);
+            document.getElementById('buscar-produtos').addEventListener('input', buscarProdutos);
             
-            document.getElementById('register-cnpj').addEventListener('input', (e) => { e.target.value = formatCNPJ(e.target.value); });
-            document.getElementById('register-celular').addEventListener('input', (e) => { e.target.value = formatCelular(e.target.value); });
-            document.getElementById('register-cep').addEventListener('input', (e) => { e.target.value = formatCEP(e.target.value); });
-            document.getElementById('register-cep').addEventListener('blur', searchCEP);
+            document.getElementById('cnpj-cadastro').addEventListener('input', (e) => { e.target.value = formatarCNPJ(e.target.value); });
+            document.getElementById('celular-cadastro').addEventListener('input', (e) => { e.target.value = formatarCelular(e.target.value); });
+            document.getElementById('cep-cadastro').addEventListener('input', (e) => { e.target.value = formatarCEP(e.target.value); });
+            document.getElementById('cep-cadastro').addEventListener('blur', buscarCEP);
             
-            document.getElementById('make-order-tab').addEventListener('click', () => showOrderView('products'));
-            document.getElementById('history-tab').addEventListener('click', () => showOrderView('history'));
-            document.getElementById('admin-tab').addEventListener('click', () => showOrderView('admin'));
+            document.getElementById('aba-fazer-pedido').addEventListener('click', () => mostrarVisaoPedido('produtos'));
+            document.getElementById('aba-historico').addEventListener('click', () => mostrarVisaoPedido('historico'));
+            document.getElementById('aba-admin').addEventListener('click', () => mostrarVisaoPedido('admin'));
 
-            fetchProductsFromSheet();
-            renderCart();
-            showOrderView('products'); // Inicia na tela de catálogo
+            buscarProdutosDaPlanilha();
+            renderizarCarrinho();
+            mostrarVisaoPedido('produtos'); // Inicia na tela de catálogo
         });
 
     </script>
@@ -739,100 +758,100 @@
     <div class="w-full max-w-7xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
         
         <!-- Header -->
-        <header class="sticky-header flex flex-col sm:flex-row items-center justify-between p-4 bg-white z-50">
+        <header class="sticky-header flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-red-800 text-white z-50">
             <div class="flex items-center space-x-4 mb-4 sm:mb-0">
-                <img src="https://i.imgur.com/8YvL6o8.jpg" alt="Logo Rod Frios" class="rounded-lg h-12 shadow-sm">
+                <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExZmNqcXZiZmk1NW8zenZ0ejBhZW5udmN2ODYxaHdhdDFiOWxsNXY1ZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26ktwmVlV8XujqdWvp/giphy.gif" alt="Logo Rod Frios" class="rounded-lg h-12 shadow-sm">
                 <div class="flex flex-col">
-                    <h1 class="text-xl font-bold text-gray-800">Faça Seu Pedido na Rod</h1>
-                    <p class="text-sm text-gray-600 hidden sm:block">Distribuição de Alimentos</p>
+                    <h1 class="text-xl font-bold">Faça Seu Pedido na Rod</h1>
+                    <p class="text-sm hidden sm:block text-gray-200">Distribuição de Alimentos</p>
                 </div>
             </div>
             
-            <div id="order-section-header" class="w-full sm:w-auto text-center hidden sm:block">
-                <p class="text-gray-700 font-bold" id="welcome-message-display"></p>
-                <p class="text-sm text-gray-500 mb-2">Empresa: <span class="font-semibold" id="company-name-display"></span></p>
-                <button id="logout-button" class="text-sm text-red-500 hover:underline">Sair</button>
+            <div id="secao-header-pedido" class="w-full sm:w-auto text-center hidden sm:block">
+                <p class="font-bold text-lg" id="mensagem-boas-vindas"></p>
+                <p class="text-sm text-gray-200">Empresa: <span class="font-semibold" id="nome-empresa-display"></span></p>
+                <button id="botao-logout" class="text-sm text-red-300 hover:underline">Sair</button>
             </div>
         </header>
         
         <!-- Main Content -->
         <main class="p-4 md:p-8">
-            <p id="error-banner" class="hidden text-red-500 text-center text-sm font-semibold mb-4"></p>
+            <p id="banner-erro" class="hidden text-red-500 text-center text-sm font-semibold mb-4"></p>
 
             <!-- Seção de Autenticação (Login e Cadastro) -->
-            <div id="auth-section" class="max-w-md mx-auto bg-gray-50 p-8 rounded-lg shadow-md">
+            <div id="secao-auth" class="max-w-md mx-auto bg-gray-50 p-8 rounded-lg shadow-md">
                 <div class="text-center mb-6">
                     <h2 class="text-2xl font-bold text-gray-800">Bem-vindo(a)!</h2>
                     <p class="text-gray-600 mt-2">Faça seu login ou cadastre-se para continuar.</p>
                 </div>
                 
                 <!-- Formulário de Login -->
-                <div id="login-section" class="space-y-4">
-                    <form id="login-form">
-                        <input type="email" id="login-email" placeholder="Email" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
-                        <input type="password" id="login-password" placeholder="Senha" required class="w-full p-3 mt-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
+                <div id="secao-login" class="space-y-4">
+                    <form id="form-login">
+                        <input type="email" id="email-login" placeholder="Email" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
+                        <input type="password" id="senha-login" placeholder="Senha" required class="w-full p-3 mt-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
                         <button type="submit" class="w-full mt-6 text-gray-800 p-3 rounded-md font-semibold shadow-lg hover:shadow-xl transition duration-200 btn-magalu-primary">Entrar</button>
                     </form>
-                    <p id="login-message" class="text-center text-sm mt-2"></p>
+                    <p id="mensagem-login" class="text-center text-sm mt-2"></p>
                     <p class="text-center text-sm text-gray-600 mt-4">
                         Não tem uma conta?
-                        <button id="show-register-form" class="text-yellow-600 hover:underline">Cadastre-se agora</button>
+                        <button id="mostrar-formulario-cadastro" class="text-yellow-600 hover:underline">Cadastre-se agora</button>
                     </p>
                 </div>
 
                 <!-- Formulário de Cadastro -->
-                <div id="register-section" class="space-y-4 hidden">
-                    <form id="register-form" class="space-y-4">
-                        <input type="text" id="register-empresa" placeholder="Nome da Empresa" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
-                        <input type="text" id="register-cnpj" placeholder="CNPJ" required maxlength="18" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
-                        <input type="text" id="register-contato" placeholder="Seu Nome Completo" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
-                        <input type="tel" id="register-celular" placeholder="Celular" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
-                        <input type="text" id="register-cep" placeholder="CEP" required maxlength="9" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
-                        <input type="text" id="register-endereco" placeholder="Endereço" required readonly class="w-full p-3 border border-gray-300 rounded-md focus:outline-none bg-gray-100">
-                        <input type="text" id="register-numero" placeholder="Número" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
-                        <input type="text" id="register-complemento" placeholder="Complemento (Opcional)" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
-                        <input type="email" id="register-email" placeholder="Email" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
-                        <input type="password" id="register-password" placeholder="Crie uma senha" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
-                        <input type="password" id="register-confirm-password" placeholder="Repita a Senha" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
+                <div id="secao-cadastro" class="space-y-4 hidden">
+                    <form id="form-cadastro" class="space-y-4">
+                        <input type="text" id="empresa-cadastro" placeholder="Nome da Empresa" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
+                        <input type="text" id="cnpj-cadastro" placeholder="CNPJ" required maxlength="18" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
+                        <input type="text" id="contato-cadastro" placeholder="Seu Nome Completo" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
+                        <input type="tel" id="celular-cadastro" placeholder="Celular" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
+                        <input type="text" id="cep-cadastro" placeholder="CEP" required maxlength="9" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
+                        <input type="text" id="endereco-cadastro" placeholder="Endereço" required readonly class="w-full p-3 border border-gray-300 rounded-md focus:outline-none bg-gray-100">
+                        <input type="text" id="numero-cadastro" placeholder="Número" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
+                        <input type="text" id="complemento-cadastro" placeholder="Complemento (Opcional)" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
+                        <input type="email" id="email-cadastro" placeholder="Email" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
+                        <input type="password" id="senha-cadastro" placeholder="Crie uma senha" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
+                        <input type="password" id="confirmar-senha-cadastro" placeholder="Repita a Senha" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-400 transition duration-200">
                         <button type="submit" class="w-full mt-6 text-white p-3 rounded-md font-semibold shadow-lg hover:shadow-xl transition duration-200 btn-magalu-secondary">Cadastrar</button>
                     </form>
-                    <p id="register-message" class="text-center text-sm mt-2"></p>
+                    <p id="mensagem-cadastro" class="text-center text-sm mt-2"></p>
                     <p class="text-center text-sm text-gray-600 mt-4">
                         Já tem uma conta?
-                        <button id="show-login-form" class="text-yellow-600 hover:underline">Fazer login</button>
+                        <button id="mostrar-formulario-login" class="text-yellow-600 hover:underline">Fazer login</button>
                     </p>
                 </div>
             </div>
 
             <!-- Seção de Verificação de E-mail (Visível após o cadastro) -->
-            <div id="email-verification-section" class="hidden text-center max-w-md mx-auto p-8 rounded-lg shadow-md">
+            <div id="secao-verificacao-email" class="hidden text-center max-w-md mx-auto p-8 rounded-lg shadow-md">
                 <h2 class="text-2xl font-bold text-gray-800 mb-4">Verifique seu E-mail</h2>
                 <p class="text-gray-600 mb-4">Um e-mail de verificação foi enviado para o seu endereço de e-mail. Por favor, clique no link dentro do e-mail para validar sua conta.</p>
                 <p class="text-red-500 text-sm mb-4">Se não encontrar o e-mail, verifique a pasta de Spam.</p>
                 <p class="text-gray-600 mb-6">Após a verificação, você poderá voltar e fazer o login para enviar pedidos.</p>
-                <button id="resend-email-button" class="w-full mt-4 bg-gray-400 text-white p-3 rounded-md font-semibold hover:bg-gray-500 transition duration-200">Reenviar e-mail de verificação</button>
+                <button id="botao-reenviar-email" class="w-full mt-4 bg-gray-400 text-white p-3 rounded-md font-semibold hover:bg-gray-500 transition duration-200">Reenviar e-mail de verificação</button>
             </div>
 
             <!-- Seção de Pedido (Visível após o login) -->
-            <div id="order-section" class="hidden">
+            <div id="secao-pedido" class="hidden">
                 <div class="sm:hidden text-center mb-4">
-                     <p class="text-gray-700 font-bold" id="welcome-message-display"></p>
-                    <p class="text-sm text-gray-500 mb-2">Empresa: <span class="font-semibold" id="company-name-display"></span></p>
-                    <button id="logout-button" class="text-sm text-red-500 hover:underline">Sair</button>
+                     <p class="font-bold text-lg" id="mensagem-boas-vindas"></p>
+                    <p class="text-sm text-gray-500 mb-2">Empresa: <span class="font-semibold" id="nome-empresa-display"></span></p>
+                    <button id="botao-logout" class="text-sm text-red-500 hover:underline">Sair</button>
                 </div>
                 
                 <div class="flex border-b-2 border-gray-200 mb-4">
-                    <button id="make-order-tab" class="flex-1 py-2 text-center text-lg font-semibold text-gray-600 hover:text-yellow-600 tab-button active">Fazer Pedido</button>
-                    <button id="history-tab" class="flex-1 py-2 text-center text-lg font-semibold text-gray-600 hover:text-yellow-600 tab-button">Histórico de Pedidos</button>
-                    <button id="admin-tab" class="flex-1 py-2 text-center text-lg font-semibold text-gray-600 hover:text-yellow-600 tab-button hidden">Pedidos de Clientes</button>
+                    <button id="aba-fazer-pedido" class="flex-1 py-2 text-center text-lg font-semibold text-gray-600 hover:text-yellow-600 tab-button active">Fazer Pedido</button>
+                    <button id="aba-historico" class="flex-1 py-2 text-center text-lg font-semibold text-gray-600 hover:text-yellow-600 tab-button">Histórico de Pedidos</button>
+                    <button id="aba-admin" class="flex-1 py-2 text-center text-lg font-semibold text-gray-600 hover:text-yellow-600 tab-button hidden">Pedidos de Clientes</button>
                 </div>
                 
-                <div id="products-view" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div id="visao-produtos" class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <!-- Coluna de Produtos -->
                     <div class="md:col-span-2">
                         <h2 class="text-2xl font-bold text-gray-800 mb-4">Catálogo de Produtos</h2>
-                        <input type="text" id="search-products" placeholder="Buscar produtos..." class="w-full p-3 border border-gray-300 rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-yellow-400">
-                        <div id="product-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto max-h-[70vh]">
+                        <input type="text" id="buscar-produtos" placeholder="Buscar produtos..." class="w-full p-3 border border-gray-300 rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                        <div id="lista-produtos" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto max-h-[70vh]">
                             <!-- Produtos serão inseridos aqui pelo JavaScript -->
                         </div>
                     </div>
@@ -841,16 +860,16 @@
                     <div class="md:col-span-1">
                         <div class="bg-gray-50 p-6 rounded-lg shadow-md sticky top-28">
                             <h2 class="text-2xl font-bold text-gray-800 mb-4">Seu Carrinho</h2>
-                            <div id="cart-items-container" class="bg-white p-4 rounded-lg shadow-inner overflow-y-auto max-h-64 mb-4">
+                            <div id="container-itens-carrinho" class="bg-white p-4 rounded-lg shadow-inner overflow-y-auto max-h-64 mb-4">
                                 <!-- Itens do carrinho serão inseridos aqui pelo JavaScript -->
                             </div>
                             <div class="border-t pt-4">
                                 <div class="flex justify-between items-center text-lg font-bold text-gray-800">
                                     <span>Total:</span>
-                                    <span id="cart-total" class="text-red-600">R$ 0.00</span>
+                                    <span id="total-carrinho" class="text-red-600">R$ 0.00</span>
                                 </div>
-                                <form id="order-form" class="space-y-4 mt-6">
-                                    <p id="order-message" class="text-center text-sm mt-4"></p>
+                                <form id="form-pedido" class="space-y-4 mt-6">
+                                    <p id="mensagem-pedido" class="text-center text-sm mt-4"></p>
                                     <button type="submit" class="w-full text-white p-3 rounded-md font-semibold shadow-lg hover:shadow-xl transition duration-200 bg-red-600">
                                         Enviar Pedido
                                     </button>
@@ -862,16 +881,16 @@
             </div>
 
             <!-- Seção de Histórico de Pedidos -->
-            <div id="history-view" class="hidden mt-4">
-                 <div id="history-list">
+            <div id="visao-historico" class="hidden mt-4">
+                 <div id="lista-historico">
                      <!-- Histórico será inserido aqui pelo JavaScript -->
                  </div>
             </div>
 
             <!-- Seção de Admin -->
-            <div id="admin-view" class="hidden mt-4">
+            <div id="visao-admin" class="hidden mt-4">
                 <h2 class="text-2xl font-bold text-gray-800 mb-4">Pedidos de Clientes (Admin)</h2>
-                <div id="admin-order-list" class="space-y-4">
+                <div id="lista-pedidos-admin" class="space-y-4">
                     <!-- Pedidos de todos os clientes serão inseridos aqui -->
                 </div>
             </div>
@@ -879,20 +898,31 @@
     </div>
     
     <!-- Modal de Edição de Pedidos -->
-    <div id="edit-modal" class="modal">
+    <div id="modal-edicao" class="modal">
         <div class="modal-content">
             <h3 class="text-xl font-bold mb-4">Editar Status do Pedido</h3>
-            <label for="edit-payment-status" class="block mb-2">Status de Pagamento:</label>
-            <select id="edit-payment-status" class="w-full p-2 border rounded mb-4">
+            <label for="status-pagamento-edicao" class="block mb-2">Status de Pagamento:</label>
+            <select id="status-pagamento-edicao" class="w-full p-2 border rounded mb-4">
                 <option value="Não Pago">Não Pago</option>
                 <option value="Parcialmente Pago">Parcialmente Pago</option>
                 <option value="Totalmente Pago">Totalmente Pago</option>
             </select>
             <div class="flex justify-end space-x-2">
-                <button id="edit-modal-close" class="bg-gray-300 text-gray-800 px-4 py-2 rounded-md">Cancelar</button>
-                <button id="save-payment-status" class="bg-blue-600 text-white px-4 py-2 rounded-md">Salvar</button>
+                <button id="fechar-modal-edicao" class="bg-gray-300 text-gray-800 px-4 py-2 rounded-md">Cancelar</button>
+                <button id="botao-salvar-status" class="bg-blue-600 text-white px-4 py-2 rounded-md">Salvar</button>
             </div>
         </div>
+    </div>
+
+    <!-- Banner de Aceite de Cookies -->
+    <div id="banner-aceite-cookies" class="flex flex-col sm:flex-row items-center justify-between p-4 space-y-4 sm:space-y-0">
+        <p class="text-sm text-gray-200">
+            Nós utilizamos cookies para garantir uma melhor experiência no nosso site.
+            Ao continuar navegando, você concorda com a nossa política de cookies.
+        </p>
+        <button id="botao-aceitar-cookies" class="w-full sm:w-auto px-4 py-2 bg-yellow-400 text-gray-800 rounded-md font-semibold hover:bg-yellow-500 transition duration-200">
+            Aceitar
+        </button>
     </div>
 </body>
 </html>
